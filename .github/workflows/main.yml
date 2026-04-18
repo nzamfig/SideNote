@@ -1,4 +1,4 @@
-name: sidenote CI
+name: sidenote ci
 
 on:
   push:
