@@ -1,9 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="100" fill="#F5C842"/>
-  <rect x="90" y="90" width="220" height="270" rx="24" fill="white" fill-opacity="0.95"/>
-  <path d="M256 120h80M256 160h80M256 200h80" stroke="white" stroke-width="22" stroke-linecap="round"/>
-  <line x1="120" y1="170" x2="216" y2="170" stroke="#F5C842" stroke-width="16" stroke-linecap="round"/>
-  <line x1="120" y1="210" x2="216" y2="210" stroke="#F5C842" stroke-width="16" stroke-linecap="round"/>
-  <line x1="120" y1="250" x2="216" y2="250" stroke="#F5C842" stroke-width="16" stroke-linecap="round"/>
-  <line x1="120" y1="290" x2="180" y2="290" stroke="#F5C842" stroke-width="16" stroke-linecap="round"/>
+  <!-- Yellow background matching the app theme -->
+  <rect width="512" height="512" rx="108" fill="#F5C842"/>
+  <!-- Notepad body (from sidenote.svg rect, scaled ×20, offset 106) -->
+  <rect x="126" y="126" width="180" height="220" rx="30" fill="none" stroke="white" stroke-width="26"/>
+  <!-- Right-side short lines (from path M10 3.5h3 / M10 6h3 / M10 8.5h3) -->
+  <line x1="306" y1="176" x2="366" y2="176" stroke="white" stroke-width="26" stroke-linecap="round"/>
+  <line x1="306" y1="226" x2="366" y2="226" stroke="white" stroke-width="26" stroke-linecap="round"/>
+  <line x1="306" y1="276" x2="366" y2="276" stroke="white" stroke-width="26" stroke-linecap="round"/>
+  <!-- Notepad inner lines (from line x1=3.5…) -->
+  <line x1="176" y1="206" x2="256" y2="206" stroke="white" stroke-width="22" stroke-linecap="round"/>
+  <line x1="176" y1="256" x2="256" y2="256" stroke="white" stroke-width="22" stroke-linecap="round"/>
+  <line x1="176" y1="306" x2="226" y2="306" stroke="white" stroke-width="22" stroke-linecap="round"/>
 </svg>

@@ -24,8 +24,20 @@ export function useCanvasInteraction() {
    */
   const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
 
+  /**
+   * Set to true when handleTouchEnd creates a memo via double-tap.
+   * Mobile browsers fire a synthetic dblclick after a double-tap, which would
+   * trigger handleDoubleClick a second time and create a duplicate memo.
+   * This flag lets handleDoubleClick skip that synthetic event.
+   */
+  const suppressNextDblClickRef = useRef(false);
+
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      if (suppressNextDblClickRef.current) {
+        suppressNextDblClickRef.current = false;
+        return;
+      }
       if ((e.target as HTMLElement).closest('[data-memo-id]')) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -75,8 +87,9 @@ export function useCanvasInteraction() {
         Math.abs(x - last.x) < 30 &&
         Math.abs(y - last.y) < 30
       ) {
-        // Double-tap confirmed
+        // Double-tap confirmed — suppress the synthetic dblclick the browser will fire next
         lastTapRef.current = null;
+        suppressNextDblClickRef.current = true;
         createMemo({ position: { x, y } });
       } else {
         lastTapRef.current = { time: now, x, y };
