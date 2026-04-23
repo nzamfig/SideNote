@@ -58,10 +58,6 @@ interface ResizeHandleState {
   left: number;
 }
 
-interface TextToolbarState {
-  top: number;
-  left: number;
-}
 
 /**
  * Converts a saved content string to HTML suitable for innerHTML.
@@ -116,6 +112,30 @@ function getCleanedHTML(div: HTMLDivElement): string {
 /** Helper that bulk-applies a style object to an element's style */
 function applyStyles(el: HTMLElement, styles: Partial<CSSStyleDeclaration>) {
   Object.assign(el.style, styles);
+}
+
+/**
+ * Removes nested font-size spans inside `root` so that the outermost new size wins.
+ * Processes innermost spans first (reversed querySelectorAll order) to avoid
+ * re-processing already-unwrapped nodes.
+ * Spans that had only font-size are fully unwrapped; spans with other styles keep
+ * them but lose font-size.
+ */
+function removeInnerFontSizes(root: HTMLElement): void {
+  Array.from(root.querySelectorAll<HTMLElement>('span')).reverse().forEach((el) => {
+    if (!el.style.fontSize) return;
+    el.style.removeProperty('font-size');
+    if (!el.style.cssText.trim()) {
+      el.replaceWith(...Array.from(el.childNodes));
+    }
+  });
+}
+
+/** Removes spans that have no children (left empty after extractContents). */
+function cleanupEmptySpans(root: HTMLElement): void {
+  root.querySelectorAll('span').forEach((el) => {
+    if (el.childNodes.length === 0) el.remove();
+  });
 }
 
 /**
@@ -402,7 +422,7 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
     const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [imgToolbar, setImgToolbar] = useState<ImgToolbarState | null>(null);
     const [resizeHandle, setResizeHandle] = useState<ResizeHandleState | null>(null);
-    const [textToolbar, setTextToolbar] = useState<TextToolbarState | null>(null);
+    const [textToolbar, setTextToolbar] = useState(false);
     const [showSizeMenu, setShowSizeMenu] = useState(false);
     const resizeHandleRef = useRef<HTMLDivElement>(null);
 
@@ -431,37 +451,22 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
       const handleSelectionChange = () => {
         const sel = window.getSelection();
         const div = divRef.current;
-        const wrapper = wrapperRef.current;
-        if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !div || !wrapper) {
-          setTextToolbar(null);
+        if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !div) {
+          setTextToolbar(false);
           setShowSizeMenu(false);
           return;
         }
         if (!div.contains(sel.anchorNode) || !div.contains(sel.focusNode)) {
-          setTextToolbar(null);
+          setTextToolbar(false);
           setShowSizeMenu(false);
           return;
         }
-        const range = sel.getRangeAt(0);
-        const rects = range.getClientRects();
-        if (rects.length === 0) {
-          setTextToolbar(null);
+        if (sel.getRangeAt(0).getClientRects().length === 0) {
+          setTextToolbar(false);
           setShowSizeMenu(false);
           return;
         }
-        const endRect = rects[rects.length - 1];
-        const wrapperRect = wrapper.getBoundingClientRect();
-        const TOOLBAR_W = 66;
-        const TOOLBAR_H = 24;
-        const GAP = 4;
-        const endX = endRect.right - wrapperRect.left;
-        const left = Math.max(0, Math.min(wrapper.offsetWidth - TOOLBAR_W, endX - TOOLBAR_W / 2));
-        const topBelow = endRect.bottom - wrapperRect.top + GAP;
-        const hasSpaceBelow = topBelow + TOOLBAR_H <= wrapper.offsetHeight;
-        setTextToolbar({
-          top: hasSpaceBelow ? topBelow : Math.max(0, endRect.top - wrapperRect.top - TOOLBAR_H - GAP),
-          left,
-        });
+        setTextToolbar(true);
       };
       document.addEventListener('selectionchange', handleSelectionChange);
       return () => document.removeEventListener('selectionchange', handleSelectionChange);
@@ -603,23 +608,43 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
     const applyFormat = (command: 'bold' | 'italic') => {
       document.execCommand(command);
       const div = divRef.current;
-      if (div) onChange(getCleanedHTML(div));
+      if (div) {
+        cleanupEmptySpans(div);
+        onChange(getCleanedHTML(div));
+      }
     };
 
     const applyFontSize = (size: number) => {
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
       const range = sel.getRangeAt(0);
-      const span = document.createElement('span');
-      span.style.fontSize = `${size}px`;
-      span.appendChild(range.extractContents());
-      range.insertNode(span);
+      let span: HTMLSpanElement;
+      try {
+        // surroundContents preserves surrounding formatting (e.g. <b>, <i>) by inserting
+        // the new span inside the existing element rather than extracting the text node.
+        // Throws when the selection crosses element boundaries (partial containment).
+        span = document.createElement('span');
+        span.style.fontSize = `${size}px`;
+        range.surroundContents(span);
+      } catch {
+        // Cross-element selection: extract fragment (preserves inner <b>/<i> clones)
+        // then wrap and re-insert.
+        span = document.createElement('span');
+        span.style.fontSize = `${size}px`;
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+      }
+      // Remove any nested font-size spans so the new size takes full effect.
+      removeInnerFontSizes(span);
       range.selectNodeContents(span);
       sel.removeAllRanges();
       sel.addRange(range);
       setShowSizeMenu(false);
       const div = divRef.current;
-      if (div) onChange(getCleanedHTML(div));
+      if (div) {
+        cleanupEmptySpans(div);
+        onChange(getCleanedHTML(div));
+      }
     };
 
     /**
@@ -840,10 +865,7 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
 
         {textToolbar && (
           <>
-            <div
-              className={styles.textFormatToolbar}
-              style={{ top: textToolbar.top, left: textToolbar.left }}
-            >
+            <div className={styles.textFormatToolbar}>
               <button
                 className={styles.formatBtn}
                 title="Bold"
@@ -867,15 +889,7 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
               </button>
             </div>
             {showSizeMenu && (
-              <div
-                className={styles.sizeMenu}
-                style={{
-                  left: textToolbar.left,
-                  ...(textToolbar.top >= 56
-                    ? { top: textToolbar.top - 56 }
-                    : { top: textToolbar.top + 28 }),
-                }}
-              >
+              <div className={styles.sizeMenu}>
                 {[10, 12, 14, 16, 18, 24].map((size) => (
                   <button
                     key={size}
