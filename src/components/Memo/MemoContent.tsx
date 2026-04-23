@@ -58,6 +58,11 @@ interface ResizeHandleState {
   left: number;
 }
 
+interface TextToolbarState {
+  top: number;
+  left: number;
+}
+
 /**
  * Converts a saved content string to HTML suitable for innerHTML.
  *
@@ -397,6 +402,8 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
     const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [imgToolbar, setImgToolbar] = useState<ImgToolbarState | null>(null);
     const [resizeHandle, setResizeHandle] = useState<ResizeHandleState | null>(null);
+    const [textToolbar, setTextToolbar] = useState<TextToolbarState | null>(null);
+    const [showSizeMenu, setShowSizeMenu] = useState(false);
     const resizeHandleRef = useRef<HTMLDivElement>(null);
 
     // Uncontrolled pattern: set innerHTML on mount + re-initialize existing maps
@@ -417,6 +424,47 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
         });
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Show/hide text formatting toolbar based on selection inside the editor
+    useEffect(() => {
+      const handleSelectionChange = () => {
+        const sel = window.getSelection();
+        const div = divRef.current;
+        const wrapper = wrapperRef.current;
+        if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !div || !wrapper) {
+          setTextToolbar(null);
+          setShowSizeMenu(false);
+          return;
+        }
+        if (!div.contains(sel.anchorNode) || !div.contains(sel.focusNode)) {
+          setTextToolbar(null);
+          setShowSizeMenu(false);
+          return;
+        }
+        const range = sel.getRangeAt(0);
+        const rects = range.getClientRects();
+        if (rects.length === 0) {
+          setTextToolbar(null);
+          setShowSizeMenu(false);
+          return;
+        }
+        const endRect = rects[rects.length - 1];
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const TOOLBAR_W = 66;
+        const TOOLBAR_H = 24;
+        const GAP = 4;
+        const endX = endRect.right - wrapperRect.left;
+        const left = Math.max(0, Math.min(wrapper.offsetWidth - TOOLBAR_W, endX - TOOLBAR_W / 2));
+        const topBelow = endRect.bottom - wrapperRect.top + GAP;
+        const hasSpaceBelow = topBelow + TOOLBAR_H <= wrapper.offsetHeight;
+        setTextToolbar({
+          top: hasSpaceBelow ? topBelow : Math.max(0, endRect.top - wrapperRect.top - TOOLBAR_H - GAP),
+          left,
+        });
+      };
+      document.addEventListener('selectionchange', handleSelectionChange);
+      return () => document.removeEventListener('selectionchange', handleSelectionChange);
     }, []);
 
     /**
@@ -552,6 +600,28 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
       }
     };
 
+    const applyFormat = (command: 'bold' | 'italic') => {
+      document.execCommand(command);
+      const div = divRef.current;
+      if (div) onChange(getCleanedHTML(div));
+    };
+
+    const applyFontSize = (size: number) => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+      const range = sel.getRangeAt(0);
+      const span = document.createElement('span');
+      span.style.fontSize = `${size}px`;
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+      range.selectNodeContents(span);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      setShowSizeMenu(false);
+      const div = divRef.current;
+      if (div) onChange(getCleanedHTML(div));
+    };
+
     /**
      * Shows the alignment toolbar and resize handle when hovering over an image.
      * - Alignment toolbar: below the image by default, flips above if it would overflow the bottom
@@ -685,7 +755,7 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
     };
 
     return (
-      <div ref={wrapperRef} className={styles.editorWrapper}>
+      <div ref={wrapperRef} className={`${styles.editorWrapper}${textToolbar ? ` ${styles.textSelecting}` : ''}`}>
         <div
           ref={divRef}
           className={styles.editor}
@@ -719,7 +789,7 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
           }}
         />
 
-        {imgToolbar && (
+        {imgToolbar && !textToolbar && (
           <div
             className={styles.imgAlignToolbar}
             style={{ top: imgToolbar.top, left: imgToolbar.left }}
@@ -755,7 +825,7 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
           </div>
         )}
 
-        {resizeHandle && (
+        {resizeHandle && !textToolbar && (
           <div
             ref={resizeHandleRef}
             className={styles.imgResizeHandle}
@@ -766,6 +836,58 @@ export const MemoContent = forwardRef<MemoContentHandle, MemoContentProps>(
             onPointerLeave={scheduleHideToolbar}
             onPointerDown={handleResizePointerDown}
           />
+        )}
+
+        {textToolbar && (
+          <>
+            <div
+              className={styles.textFormatToolbar}
+              style={{ top: textToolbar.top, left: textToolbar.left }}
+            >
+              <button
+                className={styles.formatBtn}
+                title="Bold"
+                onPointerDown={(e) => { e.preventDefault(); applyFormat('bold'); }}
+              >
+                <b>B</b>
+              </button>
+              <button
+                className={styles.formatBtn}
+                title="Italic"
+                onPointerDown={(e) => { e.preventDefault(); applyFormat('italic'); }}
+              >
+                <i>I</i>
+              </button>
+              <button
+                className={`${styles.formatBtn} ${showSizeMenu ? styles.formatBtnActive : ''}`}
+                title="Font size"
+                onPointerDown={(e) => { e.preventDefault(); setShowSizeMenu((v) => !v); }}
+              >
+                <b style={{ fontFamily: 'serif', fontSize: '12px' }}>A</b>
+              </button>
+            </div>
+            {showSizeMenu && (
+              <div
+                className={styles.sizeMenu}
+                style={{
+                  left: textToolbar.left,
+                  ...(textToolbar.top >= 56
+                    ? { top: textToolbar.top - 56 }
+                    : { top: textToolbar.top + 28 }),
+                }}
+              >
+                {[10, 12, 14, 16, 18, 24].map((size) => (
+                  <button
+                    key={size}
+                    className={styles.sizeOption}
+                    onPointerDown={(e) => { e.preventDefault(); applyFontSize(size); }}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     );

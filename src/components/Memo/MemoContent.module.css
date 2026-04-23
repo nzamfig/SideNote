@@ -136,3 +136,85 @@
   color: rgba(0, 0, 0, 0.8);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
 }
+
+/* Hide map action bar while text is selected */
+.textSelecting :global([data-map-action-bar]) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Text formatting toolbar (shown on text selection) */
+.textFormatToolbar {
+  position: absolute;
+  display: flex;
+  gap: 3px;
+  padding: 2px 0;
+  z-index: 50;
+  pointer-events: all;
+  user-select: none;
+}
+
+.formatBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  font-size: 11px;
+  font-family: serif;
+  color: rgba(0, 0, 0, 0.5);
+  padding: 0;
+  transition: color 0.1s, box-shadow 0.1s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.formatBtn:hover {
+  color: rgba(0, 0, 0, 0.8);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+}
+
+.formatBtnActive {
+  color: rgba(0, 0, 0, 0.8);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.28);
+}
+
+/* Font size picker dropdown */
+.sizeMenu {
+  position: absolute;
+  display: flex;
+  flex-wrap: wrap;
+  width: 72px;
+  gap: 2px;
+  padding: 3px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 51;
+  pointer-events: all;
+  user-select: none;
+}
+
+.sizeOption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  color: rgba(0, 0, 0, 0.65);
+  padding: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.sizeOption:hover {
+  background: rgba(0, 0, 0, 0.07);
+  color: rgba(0, 0, 0, 0.9);
+}
