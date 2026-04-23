@@ -23,7 +23,7 @@ export function Canvas() {
   const memos = useMemoStore((s) => s.memos);
   const moveMemo = useMemoStore((s) => s.moveMemo);
   // User-specified canvas size — applied immediately as inline style on the canvas div
-  const { width: canvasWidth, height: canvasHeight } = useCanvasStore();
+  const { width: canvasWidth, height: canvasHeight, setSize: setCanvasSize } = useCanvasStore();
 
   /**
    * Ref tracking the canvas size.
@@ -84,16 +84,20 @@ export function Canvas() {
     const rawX = memo.position.x + delta.x;
     const rawY = memo.position.y + delta.y;
 
-    /**
-     * Clamp to canvas boundaries.
-     * Math.max(0, ...) → left/top boundary
-     * Math.min(..., canvasW - memo.size.width) → right/bottom boundary
-     * (subtract width/height so the memo's bottom-right corner stays inside the canvas)
-     *
-     * If canvasW is 0 (canvas DOM not yet measured), skip clamping.
-     */
-    const x = canvasW > 0 ? Math.max(0, Math.min(rawX, canvasW - memo.size.width)) : rawX;
-    const y = canvasH > 0 ? Math.max(0, Math.min(rawY, canvasH - memo.size.height)) : rawY;
+    // Clamp left/top to 0 (memos cannot go off-screen to the left or top)
+    const x = Math.max(0, rawX);
+    const y = Math.max(0, rawY);
+
+    // If the memo overflows the right or bottom edge, expand the canvas to fit it
+    const EXPAND_PADDING = 40;
+    const memoRight = x + memo.size.width;
+    const memoBottom = y + memo.size.height;
+    if (canvasW > 0 && (memoRight > canvasW || memoBottom > canvasH)) {
+      setCanvasSize(
+        Math.ceil(Math.max(canvasW, memoRight + EXPAND_PADDING)),
+        Math.ceil(Math.max(canvasH, memoBottom + EXPAND_PADDING))
+      );
+    }
 
     moveMemo(String(active.id), { x, y });
   };

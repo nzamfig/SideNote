@@ -30,8 +30,8 @@ export function useResizable(memoId: string, currentSize: MemoSize) {
       const startHeight = currentSize.height;
 
       const handlePointerMove = (moveEvent: PointerEvent) => {
-        const newWidth = Math.max(MEMO_CONSTRAINTS.MIN_WIDTH, startWidth + (moveEvent.clientX - startX));
-        const newHeight = Math.max(MEMO_CONSTRAINTS.MIN_HEIGHT, startHeight + (moveEvent.clientY - startY));
+        const newWidth = Math.ceil(Math.max(MEMO_CONSTRAINTS.MIN_WIDTH, startWidth + (moveEvent.clientX - startX)));
+        const newHeight = Math.ceil(Math.max(MEMO_CONSTRAINTS.MIN_HEIGHT, startHeight + (moveEvent.clientY - startY)));
         resizeMemo(memoId, { width: newWidth, height: newHeight });
       };
 
