@@ -9,7 +9,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['sidenote.svg', 'pwa-icon.svg'],
+      includeAssets: ['sidenote.svg', 'pwa-icon.svg', 'launcher-icon.svg'],
       manifest: {
         name: 'SideNote',
         short_name: 'SideNote',
@@ -20,13 +20,13 @@ export default defineConfig({
         start_url: '.',
         icons: [
           {
-            src: 'sidenote.svg',
+            src: 'launcher-icon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any',
           },
           {
-            src: 'sidenote.svg',
+            src: 'launcher-icon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'maskable',
